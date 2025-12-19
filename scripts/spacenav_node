@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+ 
+import rospy
+from geometry_msgs.msg import TwistStamped
+from sensor_msgs.msg import Joy
+import pyspacemouse
+
+
+# inspired by frankarobotics/franka_spacemouse
+
+class SpaceMousePublisher:
+    """
+    pyspacemouse-forward to ROS topics
+    """
+
+    def __init__(self):
+        # e.g., "SpaceMouse Compact"
+        # path sadly does not support symlinks in easyhid, so it's not reliable.
+        # for two equivalent devices this needs to be adjusted
+        self.device_name = rospy.get_param("~device", None)
+
+        self.rate = rospy.get_param("~publish_rate", 100)
+
+        self.twist_frame = rospy.get_param("~frame_id", "spacemouse")
+
+        self.joy_pub = rospy.Publisher("joy", Joy, queue_size=1)
+        self.twist_pub = rospy.Publisher("twist", TwistStamped, queue_size=1)
+
+        self.device = pyspacemouse.open(device= self.device_name)
+
+        if not self.device or (self.device_name and self.device.product_name != self.device_name):
+            msg= f"Could not open SpaceMouse device '{self.device_name}'"
+            rospy.logfatal(msg)
+            raise Exception(msg)
+
+        # TODO: set up button callback to avoid missing button presses with polling
+        # state = self.device.state
+        # single callback for all? button_callback = pyspacemouse.ButtonCallback(0, self._button_callback)
+        # button_callbacks = [pyspacemouse.ButtonCallback(b, self._button_callback) for b in range(len(state.buttons))]
+        # self.device.config_set_sep(button_callback_arr=button_callbacks)
+        
+        self.timer = rospy.Timer(rospy.Duration(1.0/self.rate), self._timer_cb)
+
+    def _timer_cb(self, ev):
+        state = self.device.state
+
+        twist_msg = TwistStamped()
+        twist_msg.header.frame_id = self.twist_frame
+        twist_msg.header.stamp = rospy.Time.now()
+        # TODO: possibly use device time after calibration
+        # twist_msg.header.stamp = state.t + startup_time
+
+        twist_msg.twist.linear.x = float(state.y)
+        twist_msg.twist.linear.y = float(state.x)
+        twist_msg.twist.linear.z = float(state.z)
+        twist_msg.twist.angular.x = float(state.roll)
+        twist_msg.twist.angular.y = float(state.pitch)
+        twist_msg.twist.angular.z = float(state.yaw)
+
+        self.twist_pub.publish(twist_msg)
+
+        joy_msg = Joy()
+        joy_msg.header = twist_msg.header
+        joy_msg.axes = [float(s) for s in [state.x, state.y, state.z, state.roll, state.pitch, state.yaw]]
+        joy_msg.buttons = [int(b) for b in state.buttons]
+        self.joy_pub.publish(joy_msg)
+
+def main():
+    rospy.init_node("spacenav_node")
+    spacemouse_publisher = SpaceMousePublisher()
+    rospy.spin()
+
+if __name__ == "__main__":
+    main()

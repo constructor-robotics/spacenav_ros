@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>spacenav_ros</name>
+  <version>0.0.0</version>
+  <description>Aims to be a drop-in replacement for spacenav_node through pyspacemouse
+  
+  The main additional feature is support for different 3Dconnexion devices connected simultaneously
+  through path specification. This is intrinsically not supported by spacenavd.
+  </description>
+
+ <maintainer email="migoerner@constructor.university">Michael Goerner</maintainer>
+
+ <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>catkin_virtualenv</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rospy</depend>
+  <depend>sensor_msgs</depend>
+
+  <!-- no file conflict, but as long as spacenavd is running, it blocks the device -->
+  <conflict>spacenav_node</conflict>
+
+  <export>
+    <pip_requirements>requirements.txt</pip_requirements>
+  </export>
+</package>
