@@ -18,6 +18,7 @@ class SpaceMousePublisher:
         # path sadly does not support symlinks in easyhid, so it's not reliable.
         # for two equivalent devices this needs to be adjusted
         self.device_name = rospy.get_param("~device", None)
+        self.device_path = rospy.get_param("~path", None)
 
         self.rate = rospy.get_param("~publish_rate", 200)
 
@@ -26,7 +27,7 @@ class SpaceMousePublisher:
         self.joy_pub = rospy.Publisher("joy", Joy, queue_size=1)
         self.twist_pub = rospy.Publisher("twist", TwistStamped, queue_size=1)
 
-        self.device = pyspacemouse.open(device= self.device_name)
+        self.device = pyspacemouse.open(device= self.device_name, path=self.device_path)
 
         if not self.device or (self.device_name and self.device.product_name != self.device_name):
             msg= f"Could not open SpaceMouse device '{self.device_name}'"
