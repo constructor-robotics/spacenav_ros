@@ -19,7 +19,7 @@ class SpaceMousePublisher:
         # for two equivalent devices this needs to be adjusted
         self.device_name = rospy.get_param("~device", None)
 
-        self.rate = rospy.get_param("~publish_rate", 100)
+        self.rate = rospy.get_param("~publish_rate", 200)
 
         self.twist_frame = rospy.get_param("~frame_id", "spacemouse")
 
