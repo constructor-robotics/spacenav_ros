@@ -52,11 +52,11 @@ class SpaceMousePublisher:
         # twist_msg.header.stamp = state.t + startup_time
 
         twist_msg.twist.linear.x = float(state.y)
-        twist_msg.twist.linear.y = float(state.x)
+        twist_msg.twist.linear.y = -float(state.x)
         twist_msg.twist.linear.z = float(state.z)
         twist_msg.twist.angular.x = float(state.roll)
         twist_msg.twist.angular.y = float(state.pitch)
-        twist_msg.twist.angular.z = float(state.yaw)
+        twist_msg.twist.angular.z = -float(state.yaw)
 
         self.twist_pub.publish(twist_msg)
 
