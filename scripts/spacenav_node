@@ -4,7 +4,31 @@ import rospy
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import Joy
 import pyspacemouse
+try: # optional dependency for LED control
+    import evdev
+except ImportError:
+    pass
 
+import os
+
+
+def get_event(device):
+    '''
+    find matching /dev/input/eventX for easyhid hidraw device through sysfs
+    '''
+
+    hidraw_path = os.path.realpath(device.device.path)
+    hidraw = os.path.basename(hidraw_path)
+    if not hidraw.startswith("hidraw"):
+        raise Exception(f"unexpected hid device path: '{hidraw_path}'")
+    inputs_base = f"/sys/class/hidraw/{hidraw}/device/input"
+    inputs = os.listdir(inputs_base)
+    if len(inputs) != 1:
+        raise Exception(f"no unique input device found for '{hidraw_path}'")
+    event_dirs = [d for d in os.listdir(inputs_base + "/" + inputs[0]) if d.startswith("event")]
+    if len(event_dirs) != 1:
+        raise Exception(f"no unique eventX found for '{hidraw_path}'")
+    return evdev.InputDevice(f"/dev/input/{event_dirs[0]}")
 
 # inspired by frankarobotics/franka_spacemouse
 
@@ -19,14 +43,16 @@ class SpaceMousePublisher:
         # for two equivalent devices this needs to be adjusted
         self.device_name = rospy.get_param("~device", None)
         self.device_path = rospy.get_param("~path", None)
-
         self.rate = rospy.get_param("~publish_rate", 200)
-
         self.twist_frame = rospy.get_param("~frame_id", "spacemouse")
 
-        self.joy_pub = rospy.Publisher("joy", Joy, queue_size=1)
-        self.twist_pub = rospy.Publisher("twist", TwistStamped, queue_size=1)
+        self.device = None # easyhid device
+        self.event = None # evdev device for LED control
 
+        self.joy_pub = None
+        self.twist_pub = None
+
+    def __enter__(self):
         self.device = pyspacemouse.open(device= self.device_name, path=self.device_path)
 
         if not self.device or (self.device_name and self.device.product_name != self.device_name):
@@ -34,13 +60,34 @@ class SpaceMousePublisher:
             rospy.logfatal(msg)
             raise Exception(msg)
 
+        try:
+            self.event = get_event(self.device)
+        except Exception as e:
+            rospy.logwarn_once(f"Cannot access SpaceMouse LED: {e}")
+
         # TODO: set up button callback to avoid missing button presses with polling
         # state = self.device.state
         # single callback for all? button_callback = pyspacemouse.ButtonCallback(0, self._button_callback)
         # button_callbacks = [pyspacemouse.ButtonCallback(b, self._button_callback) for b in range(len(state.buttons))]
         # self.device.config_set_sep(button_callback_arr=button_callbacks)
-        
+
+        self._set_led(True)
+
+        self.joy_pub = rospy.Publisher("joy", Joy, queue_size=1)
+        self.twist_pub = rospy.Publisher("twist", TwistStamped, queue_size=1)
         self.timer = rospy.Timer(rospy.Duration(1.0/self.rate), self._timer_cb)
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.timer.shutdown()
+        self._set_led(False)
+        self.event = None
+        self.device.close()
+
+    def _set_led(self, enable: bool):
+        if self.event:
+            self.event.set_led(evdev.ecodes.LED_MISC, int(enable))
 
     def _timer_cb(self, ev):
         state = self.device.state
@@ -68,8 +115,8 @@ class SpaceMousePublisher:
 
 def main():
     rospy.init_node("spacenav_node")
-    spacemouse_publisher = SpaceMousePublisher()
-    rospy.spin()
+    with SpaceMousePublisher():
+        rospy.spin()
 
 if __name__ == "__main__":
     main()
