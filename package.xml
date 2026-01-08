@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>spacenav_ros</name>
-  <version>0.0.0</version>
+  <version>1.2.0</version>
   <description>Aims to be a drop-in replacement for spacenav_node through pyspacemouse
   
   The main additional feature is support for different 3Dconnexion devices connected simultaneously
@@ -18,6 +18,7 @@
   <depend>geometry_msgs</depend>
   <depend>rospy</depend>
   <depend>sensor_msgs</depend>
+  <depend>python3-evdev</depend>
 
   <!-- no file conflict, but as long as spacenavd is running, it blocks the device -->
   <conflict>spacenav_node</conflict>
