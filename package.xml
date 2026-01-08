@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>spacenav_ros</name>
-  <version>0.0.0</version>
+  <version>1.2.0</version>
   <description>Aims to be a drop-in replacement for spacenav_node through pyspacemouse
   
   The main additional feature is support for different 3Dconnexion devices connected simultaneously
