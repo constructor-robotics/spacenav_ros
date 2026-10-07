@@ -1,4 +1,4 @@
-cffi==2.0.0               # via easyhid
+cffi==2.1.1               # via easyhid
 easyhid==0.0.10           # via pyspacemouse
-pycparser==2.23           # via cffi
-pyspacemouse==1.1.5       # via -r requirements.in
+pycparser==3.0            # via cffi
+pyspacemouse==2.1.0       # via -r requirements.in

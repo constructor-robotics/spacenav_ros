@@ -17,7 +17,7 @@ def get_event(device):
     find matching /dev/input/eventX for easyhid hidraw device through sysfs
     '''
 
-    hidraw_path = os.path.realpath(device.device.path)
+    hidraw_path = os.path.realpath(device._device.path)
     hidraw = os.path.basename(hidraw_path)
     if not hidraw.startswith("hidraw"):
         raise Exception(f"unexpected hid device path: '{hidraw_path}'")
@@ -53,7 +53,7 @@ class SpaceMousePublisher:
         self.twist_pub = None
 
     def __enter__(self):
-        self.device = pyspacemouse.open(device= self.device_name, path=self.device_path)
+        self.device = pyspacemouse.open_by_path(self.device_path, axis_convention=pyspacemouse.AxisConvention.ROS)
 
         if not self.device or (self.device_name and self.device.product_name != self.device_name):
             msg= f"Could not open SpaceMouse device '{self.device_name}'"
@@ -98,12 +98,12 @@ class SpaceMousePublisher:
         # TODO: possibly use device time after calibration
         # twist_msg.header.stamp = state.t + startup_time
 
-        twist_msg.twist.linear.x = float(state.y)
-        twist_msg.twist.linear.y = -float(state.x)
+        twist_msg.twist.linear.x = float(state.x)
+        twist_msg.twist.linear.y = float(state.y)
         twist_msg.twist.linear.z = float(state.z)
         twist_msg.twist.angular.x = float(state.roll)
         twist_msg.twist.angular.y = float(state.pitch)
-        twist_msg.twist.angular.z = -float(state.yaw)
+        twist_msg.twist.angular.z = float(state.yaw)
 
         self.twist_pub.publish(twist_msg)
 
