@@ -3,6 +3,8 @@
 import rospy
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import Joy
+from std_srvs.srv import SetBool, SetBoolResponse
+from std_msgs.msg import Bool
 import pyspacemouse
 try: # optional dependency for LED control
     import evdev
@@ -51,6 +53,7 @@ class SpaceMousePublisher:
 
         self.joy_pub = None
         self.twist_pub = None
+        self.led_pub = None
 
     def __enter__(self):
         self.device = pyspacemouse.open_by_path(self.device_path, axis_convention=pyspacemouse.AxisConvention.ROS)
@@ -71,10 +74,16 @@ class SpaceMousePublisher:
         # button_callbacks = [pyspacemouse.ButtonCallback(b, self._button_callback) for b in range(len(state.buttons))]
         # self.device.config_set_sep(button_callback_arr=button_callbacks)
 
-        self._set_led(True)
-
         self.joy_pub = rospy.Publisher("joy", Joy, queue_size=1)
         self.twist_pub = rospy.Publisher("twist", TwistStamped, queue_size=1)
+        self.led_pub = rospy.Publisher("led_state", Bool, queue_size=1, latch=True)
+
+        self._set_led(False)
+        if self.event is not None:
+            self.led_pub.publish(Bool(data=False))
+
+        self.led_service = rospy.Service("set_led", SetBool, self._set_led_callback)
+
         self.timer = rospy.Timer(rospy.Duration(1.0/self.rate), self._timer_cb)
 
         return self
@@ -82,8 +91,21 @@ class SpaceMousePublisher:
     def __exit__(self, exc_type, exc_value, traceback):
         self.timer.shutdown()
         self._set_led(False)
+        if self.event is not None:
+            self.led_pub.publish(Bool(data=False))
         self.event = None
         self.device.close()
+
+    def _set_led_callback(self, req):
+        if self.event is None:
+            return SetBoolResponse(success=False)
+        try:
+            self._set_led(req.data)
+            self.led_pub.publish(Bool(data=req.data))
+            return SetBoolResponse(success=True)
+        except OSError as e:
+            return SetBoolResponse(success=False, message=str(e))
+
 
     def _set_led(self, enable: bool):
         if self.event:
